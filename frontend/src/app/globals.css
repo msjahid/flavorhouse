@@ -1,0 +1,54 @@
+@import "tailwindcss";
+
+@theme {
+  --color-cream: #fff6e9;
+  --color-cream-dark: #f7e6cc;
+  --color-ink: #1e1612;
+  --color-ink-soft: #5b4a40;
+  --color-flame: #e5431b;
+  --color-flame-dark: #b8310f;
+  --color-mustard: #f4b42c;
+  --color-leaf: #3f8a4a;
+
+  --font-display: "Bricolage Grotesque Variable", ui-sans-serif, system-ui, sans-serif;
+  --font-sans: "DM Sans Variable", ui-sans-serif, system-ui, sans-serif;
+}
+
+html {
+  background: var(--color-cream);
+  color: var(--color-ink);
+}
+
+body {
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+}
+
+.font-display {
+  font-family: var(--font-display);
+  letter-spacing: -0.02em;
+}
+
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+.no-scrollbar {
+  scrollbar-width: none;
+}
+
+@utility btn {
+  @apply inline-flex items-center justify-center gap-2 rounded-full px-6 py-3 font-semibold transition active:scale-[0.98] disabled:opacity-50 disabled:pointer-events-none;
+}
+@utility btn-primary {
+  @apply btn bg-flame text-white hover:bg-flame-dark;
+}
+@utility btn-dark {
+  @apply btn bg-ink text-cream hover:bg-black;
+}
+@utility btn-ghost {
+  @apply btn border-2 border-ink/15 hover:border-ink;
+}
+
+@utility input {
+  @apply w-full rounded-xl border-2 border-ink/10 bg-white px-4 py-3 outline-none transition focus:border-flame;
+}
