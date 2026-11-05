@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { SITE_NAME } from "@/lib/format";
+import { RESTAURANT } from "@/lib/restaurant";
 
 export default function Footer() {
   return (
@@ -7,12 +8,13 @@ export default function Footer() {
       <div className="mx-auto grid max-w-6xl gap-8 px-4 py-12 sm:grid-cols-3">
         <div>
           <p className="font-display text-2xl font-extrabold">🔥 {SITE_NAME}</p>
-          <p className="mt-2 text-sm text-cream/70">Wings, burgers, shakes &amp; cakes — made fresh, served hot.</p>
+          <p className="mt-2 text-sm text-cream/70">{RESTAURANT.tagline}</p>
         </div>
         <div className="text-sm">
           <p className="mb-2 font-semibold">Opening hours</p>
-          <p className="text-cream/70">Mon – Thu · 11am – 10pm</p>
-          <p className="text-cream/70">Fri – Sun · 11am – 12am</p>
+          {RESTAURANT.hours.map(([days, time]) => (
+            <p key={days} className="text-cream/70">{days} · {time}</p>
+          ))}
         </div>
         <div className="text-sm">
           <p className="mb-2 font-semibold">Order</p>

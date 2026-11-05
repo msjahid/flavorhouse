@@ -24,10 +24,13 @@ INSTALLED_APPS = [
     "django.contrib.messages",
     "django.contrib.staticfiles",
     "rest_framework",
+    "rest_framework.authtoken",
     "corsheaders",
     "storages",
     "menu",
     "orders",
+    "pos",
+    "management",
 ]
 
 MIDDLEWARE = [
@@ -62,14 +65,30 @@ TEMPLATES = [
 WSGI_APPLICATION = "config.wsgi.application"
 
 # --- Database (PostgreSQL) ---------------------------------------------------
-DATABASES = {
-    "default": dj_database_url.config(
-        default=os.getenv(
-            "DATABASE_URL", "postgres://flavorhouse:flavorhouse@localhost:5432/flavorhouse"
-        ),
-        conn_max_age=600,
-    )
-}
+def _database_url() -> str:
+    """Find the database address: DATABASE_URL, else PG* variables, else local default."""
+    url = os.getenv("DATABASE_URL", "").strip().strip('"').strip("'")
+    if url:
+        return url
+    host = os.getenv("PGHOST", "").strip()
+    if host:
+        return "postgresql://{}:{}@{}:{}/{}".format(
+            os.getenv("PGUSER", "postgres"), os.getenv("PGPASSWORD", ""), host,
+            os.getenv("PGPORT", "5432"), os.getenv("PGDATABASE", "railway"),
+        )
+    return "postgres://flavorhouse:flavorhouse@localhost:5432/flavorhouse"
+
+
+_DB_URL = _database_url()
+DATABASES = {"default": dj_database_url.parse(_DB_URL, conn_max_age=600)}
+
+# Log where we connect (password hidden) — helps when debugging on Railway.
+_db = DATABASES["default"]
+print(
+    f"[db] DATABASE_URL set: {bool(os.getenv('DATABASE_URL', '').strip())} | "
+    f"connecting to {_db.get('HOST')}:{_db.get('PORT')}/{_db.get('NAME')} as {_db.get('USER')}",
+    flush=True,
+)
 
 AUTH_PASSWORD_VALIDATORS = [
     {"NAME": "django.contrib.auth.password_validation.UserAttributeSimilarityValidator"},
@@ -79,7 +98,7 @@ AUTH_PASSWORD_VALIDATORS = [
 ]
 
 LANGUAGE_CODE = "en-us"
-TIME_ZONE = "UTC"
+TIME_ZONE = os.getenv("TIME_ZONE", "America/New_York")  # restaurant local time, e.g. America/New_York
 USE_I18N = True
 USE_TZ = True
 
@@ -119,6 +138,9 @@ else:
 FRONTEND_URLS = [u.strip().rstrip("/") for u in os.getenv("FRONTEND_URL", "http://localhost:3000").split(",") if u.strip()]
 FRONTEND_URL = FRONTEND_URLS[0]
 CORS_ALLOWED_ORIGINS = FRONTEND_URLS
+# Store registers send their device key in this header (employees may only sign in on store devices).
+from corsheaders.defaults import default_headers  # noqa: E402
+CORS_ALLOW_HEADERS = (*default_headers, "x-device-key", "x-screen-id")
 CSRF_TRUSTED_ORIGINS = FRONTEND_URLS + [
     u.strip() for u in os.getenv("CSRF_TRUSTED_ORIGINS", "").split(",") if u.strip()
 ]
@@ -146,3 +168,5 @@ STRIPE_CURRENCY = os.getenv("STRIPE_CURRENCY", "usd")
 # Restaurant settings
 DELIVERY_FEE = os.getenv("DELIVERY_FEE", "3.99")
 TAX_RATE = os.getenv("TAX_RATE", "0.08")
+# Employees may only sign in on registered store devices. Off by default: the POS is opened from one private link.
+REQUIRE_REGISTERED_DEVICE = os.getenv("REQUIRE_REGISTERED_DEVICE", "0").lower() in ("1", "true", "yes")

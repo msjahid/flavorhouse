@@ -58,6 +58,10 @@ export interface CartLine {
 
 export interface Quote {
   subtotal: string;
+  discount_amount?: string;
+  promo_savings?: string;
+  promotions?: { name: string; amount: string }[];
+  lines?: { unit_price: string; regular_price: string | null; promotion: string | null; line_total: string }[];
   delivery_fee: string;
   tax: string;
   total: string;

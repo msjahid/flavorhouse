@@ -16,10 +16,11 @@ class OrderItemInline(admin.TabularInline):
 
 @admin.register(Order)
 class OrderAdmin(admin.ModelAdmin):
-    list_display = ["number", "customer_name", "fulfillment", "status", "total", "created_at"]
-    list_filter = ["status", "fulfillment", "created_at"]
+    list_display = ["number", "branch", "customer_name", "source", "fulfillment", "payment_method", "status", "total", "created_at"]
+    list_filter = ["branch", "status", "source", "payment_method", "fulfillment", "created_at"]
     list_editable = ["status"]
     search_fields = ["customer_name", "customer_email", "customer_phone", "stripe_session_id"]
     readonly_fields = ["public_id", "subtotal", "delivery_fee", "tax", "total",
-                       "stripe_session_id", "stripe_payment_intent", "created_at", "paid_at"]
+                       "stripe_session_id", "stripe_payment_intent", "created_at", "paid_at", "refunded_at",
+                       "cash_received", "change_given", "created_by"]
     inlines = [OrderItemInline]

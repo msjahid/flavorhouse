@@ -22,7 +22,21 @@ SHAKE_TOPPINGS = [("Whipped Cream", 0), ("Oreo Crumble", 0.75), ("Caramel Drizzl
                   ("Sprinkles", 0.5), ("Brownie Bits", 1.0)]
 CAKE_SIZES = [("Slice", 0), ("Whole cake (8\")", 28.0)]
 
+COMBO_DRINKS = [("Soft drink", 0), ("Iced tea", 0), ("Lemonade", 0.5), ("Milkshake (upgrade)", 3.0)]
+COMBO_SIDES = [("Seasoned fries", 0), ("Onion rings", 0.5), ("Loaded cheese fries", 2.0)]
+
 MENU = [
+    ("Combos", "🍱", "Meal deals — save when you bundle", [
+        dict(name="Wing Combo", price="14.99", emoji="🍗", featured=True,
+             desc="6 bone-in wings, a side and a drink. Save about $3.",
+             groups=[("Flavour", True, 1, 2, WING_FLAVOURS), ("Side", True, 1, 1, COMBO_SIDES), ("Drink", True, 1, 1, COMBO_DRINKS)]),
+        dict(name="Smash Burger Combo", price="15.49", emoji="🍔",
+             desc="Classic smash burger, a side and a drink.",
+             groups=[("Side", True, 1, 1, COMBO_SIDES), ("Drink", True, 1, 1, COMBO_DRINKS)]),
+        dict(name="Family Wing Bucket", price="39.99", emoji="🪣",
+             desc="24 wings in up to 3 flavours, 2 large fries and 4 drinks.",
+             groups=[("Flavour", True, 1, 3, WING_FLAVOURS)]),
+    ]),
     ("Wings", "🍗", "Crispy wings tossed in your favourite flavour", [
         dict(name="Bone-In Wings", price="9.99", emoji="🍗", featured=True, spicy=True,
              desc="Crispy, juicy, double-fried wings tossed in the flavour of your choice.",
@@ -66,7 +80,7 @@ MENU = [
                      ("Choice", True, 1, 1, [("Cola", 0), ("Diet Cola", 0), ("Lemon-Lime", 0), ("Orange", 0)])]),
         dict(name="Bottled Water", price="1.49", emoji="💧", desc="500ml still water.", groups=[]),
     ]),
-    ("Milkshakes", "🥤", "Thick, hand-spun shakes", [
+    ("Milkshakes", "🍨", "Thick, hand-spun shakes", [
         dict(name="Classic Milkshake", price="5.99", emoji="🥛", featured=True,
              desc="Hand-spun with real ice cream.",
              groups=[("Flavour", True, 1, 1, [("Vanilla", 0), ("Chocolate", 0), ("Strawberry", 0), ("Banana", 0)]),

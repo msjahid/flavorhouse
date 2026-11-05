@@ -12,7 +12,27 @@ from rest_framework.decorators import api_view
 from rest_framework.response import Response
 
 from .models import Order, OrderItem
-from .pricing import price_cart, to_cents, totals
+from .pricing import money, price_cart, promo_summary, to_cents, totals
+
+
+def _ctx(request, channel="online"):
+    ch = request.data.get("channel", channel)
+    ctx = {"branch_id": request.data.get("branch") or None,
+           "channel": ch if ch in ("online", "pos", "kiosk") else "online",
+           "code": request.data.get("code", "")}
+    if request.data.get("partner"):
+        from .models import DeliveryPartner
+        p = DeliveryPartner.objects.filter(pk=request.data.get("partner"), is_active=True).first()
+        if p:
+            ctx.update(channel="partner", markup=p.markup_percent, code="")
+    return ctx
+
+
+def order_item(order, l):
+    """Snapshot of a priced line (kept even if the menu changes later)."""
+    return OrderItem(order=order, menu_item=l.item, name=l.item.name, options=l.options_snapshot(),
+                     unit_price=l.unit_price, regular_price=l.regular_price,
+                     promotion=l.promotion.name if l.promotion else "", quantity=l.quantity, line_total=l.line_total)
 from .serializers import CheckoutInputSerializer, OrderSerializer, QuoteInputSerializer
 
 logger = logging.getLogger(__name__)
@@ -24,9 +44,14 @@ def quote(request):
     """Return server-calculated totals for a cart (used on the cart page)."""
     s = QuoteInputSerializer(data=request.data)
     s.is_valid(raise_exception=True)
-    lines = price_cart(s.validated_data["items"])
-    t = totals(lines, s.validated_data["fulfillment"])
-    return Response({k: str(v) for k, v in t.items()})
+    lines = price_cart(s.validated_data["items"], _ctx(request))
+    t = totals(lines, s.validated_data["fulfillment"], s.validated_data.get("discount_percent") or 0)
+    saved, promos = promo_summary(lines)
+    out = {k: str(v) for k, v in t.items()}
+    out.update(promo_savings=str(saved), promotions=promos, lines=[
+        {"unit_price": str(l.unit_price), "regular_price": str(l.regular_price) if l.regular_price else None,
+         "promotion": l.promotion.name if l.promotion else None, "line_total": str(l.line_total)} for l in lines])
+    return Response(out)
 
 
 @api_view(["POST"])
@@ -39,26 +64,31 @@ def create_checkout_session(request):
         return Response({"detail": "Stripe is not configured (missing STRIPE_SECRET_KEY)."},
                         status=status.HTTP_503_SERVICE_UNAVAILABLE)
 
-    lines = price_cart(data["items"])
+    from management.models import Branch
+    branch = Branch.objects.filter(is_active=True, pk=request.data.get("branch") or 0).first() \
+        or Branch.objects.filter(is_active=True).order_by("id").first()
+
+    lines = price_cart(data["items"], {"branch_id": branch.pk if branch else None, "channel": "online",
+                                       "code": request.data.get("code", "")})
     t = totals(lines, data["fulfillment"])
+    saved, promos = promo_summary(lines)
+    tip = money(data.get("tip") or 0)
+    if tip > t["total"]:
+        return Response({"tip": [f"A tip over ${t['total']} (the order total) looks like a typo."]}, status=status.HTTP_400_BAD_REQUEST)
 
     with transaction.atomic():
         order = Order.objects.create(
+            branch=branch, tip=tip,
             customer_name=data["customer_name"],
             customer_email=data["customer_email"],
             customer_phone=data["customer_phone"],
             fulfillment=data["fulfillment"],
             delivery_address=data.get("delivery_address", ""),
             notes=data.get("notes", ""),
+            promo_discount=saved, promotions=promos,
             **t,
         )
-        OrderItem.objects.bulk_create([
-            OrderItem(
-                order=order, menu_item=l.item, name=l.item.name, options=l.options_snapshot(),
-                unit_price=l.unit_price, quantity=l.quantity, line_total=l.line_total,
-            )
-            for l in lines
-        ])
+        OrderItem.objects.bulk_create([order_item(order, l) for l in lines])
 
     currency = settings.STRIPE_CURRENCY
     line_items = []
@@ -79,6 +109,10 @@ def create_checkout_session(request):
     if t["tax"] > 0:
         line_items.append({"price_data": {"currency": currency, "unit_amount": to_cents(t["tax"]),
                                           "product_data": {"name": "Tax"}}, "quantity": 1})
+    if tip > 0:
+        line_items.append({"price_data": {"currency": currency, "unit_amount": to_cents(tip),
+                                          "product_data": {"name": "Driver tip", "description": "100% goes to your delivery driver"}},
+                           "quantity": 1})
 
     try:
         session = stripe.checkout.Session.create(

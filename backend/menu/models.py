@@ -91,3 +91,43 @@ class Option(models.Model):
 
     def __str__(self):
         return self.name
+
+
+
+class Promotion(models.Model):
+    """Happy hour, day offers, promo codes. Applied automatically when the rules match."""
+
+    class Kind(models.TextChoices):
+        PERCENT = "percent", "% off"
+        AMOUNT = "amount", "$ off each item"
+        PRICE = "price", "Special price (each item)"
+
+    class AppliesTo(models.TextChoices):
+        ALL = "all", "Whole menu"
+        CATEGORY = "category", "One category"
+        ITEMS = "items", "Chosen items"
+
+    name = models.CharField(max_length=80, help_text="Shown to customers, e.g. 'Wing Wednesday'")
+    description = models.CharField(max_length=200, blank=True)
+    kind = models.CharField(max_length=8, choices=Kind.choices, default=Kind.PERCENT)
+    value = models.DecimalField(max_digits=8, decimal_places=2)
+    applies_to = models.CharField(max_length=8, choices=AppliesTo.choices, default=AppliesTo.CATEGORY)
+    category = models.ForeignKey(Category, on_delete=models.CASCADE, null=True, blank=True, related_name="promotions")
+    items = models.ManyToManyField(MenuItem, blank=True, related_name="promotions")
+    days = models.JSONField(default=list, blank=True, help_text="0=Mon … 6=Sun; empty = every day")
+    start_time = models.TimeField(null=True, blank=True, help_text="Happy hour start (empty = all day)")
+    end_time = models.TimeField(null=True, blank=True)
+    start_date = models.DateField(null=True, blank=True)
+    end_date = models.DateField(null=True, blank=True)
+    branches = models.ManyToManyField("management.Branch", blank=True, related_name="promotions",
+                                      help_text="Empty = every store")
+    channels = models.JSONField(default=list, blank=True, help_text='["online","pos","kiosk"]; empty = everywhere')
+    code = models.CharField(max_length=30, blank=True, help_text="Optional promo code customers must enter online")
+    is_active = models.BooleanField(default=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["-is_active", "name"]
+
+    def __str__(self):
+        return self.name

@@ -51,10 +51,24 @@ export const getItem = (slug: string) => request<MenuItemDetail>(`/items/${slug}
 // Cart & checkout
 type CartPayload = { item_id: number; quantity: number; option_ids: number[] }[];
 
-export const quoteCart = (items: CartPayload, fulfillment: "pickup" | "delivery") =>
-  request<Quote>("/cart/quote/", { method: "POST", body: JSON.stringify({ items, fulfillment }), cache: "no-store" });
+export const quoteCart = (
+  items: CartPayload,
+  fulfillment: "pickup" | "delivery" | "dine_in",
+  discount_percent = 0,
+  extra: { branch?: number | null; channel?: "online" | "pos" | "kiosk"; code?: string; partner?: number } = {},
+) =>
+  request<Quote>("/cart/quote/", {
+    method: "POST",
+    body: JSON.stringify({ items, fulfillment, discount_percent, ...extra }),
+    cache: "no-store",
+  });
+
+export const getBranches = () =>
+  request<{ id: number; name: string; address: string }[]>("/branches/", { revalidate: 300 });
 
 export interface CheckoutInput {
+  branch?: number | null;
+  code?: string;
   customer_name: string;
   customer_email: string;
   customer_phone: string;
@@ -62,6 +76,7 @@ export interface CheckoutInput {
   delivery_address: string;
   notes: string;
   items: CartPayload;
+  tip?: string;
 }
 
 export const createCheckout = (input: CheckoutInput) =>
@@ -73,3 +88,21 @@ export const createCheckout = (input: CheckoutInput) =>
 
 export const getOrderBySession = (sessionId: string) =>
   request<Order>(`/orders/session/${encodeURIComponent(sessionId)}/`, { cache: "no-store" });
+
+// Whole menu with option groups (TV menu board + printable menu card)
+export type FullCategory = Category & { items: MenuItemDetail[] };
+export const getFullMenu = () => request<FullCategory[]>("/menu/full/", { revalidate: 60 });
+
+// TV screens & live offers (public)
+export interface ScreenConfig {
+  id: number; name: string; branch: number | null; title: string; subtitle: string; theme: "dark" | "light" | "flame";
+  columns: number; categories: string[]; show_qr: boolean; show_flavours: boolean; show_offers: boolean; ticker: string; updated_at: string;
+  layout: "list" | "cards" | "featured"; orientation: "landscape" | "portrait"; featured: number[];
+}
+export interface LiveOffer {
+  id: number; name: string; description: string; kind: "percent" | "amount" | "price"; value: string;
+  applies_to: string; category: string | null; items: string[]; until: string | null;
+}
+export const getScreen = (id: string) => request<ScreenConfig>(`/screens/${encodeURIComponent(id)}/`, { cache: "no-store" });
+export const getOffersNow = (branch?: number | null, channel = "pos") =>
+  request<LiveOffer[]>(`/offers/?channel=${channel}${branch ? `&branch=${branch}` : ""}`, { cache: "no-store" });

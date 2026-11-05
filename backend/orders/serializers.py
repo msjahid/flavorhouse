@@ -17,22 +17,27 @@ class CheckoutInputSerializer(serializers.Serializer):
     delivery_address = serializers.CharField(required=False, allow_blank=True, default="")
     notes = serializers.CharField(required=False, allow_blank=True, default="", max_length=500)
     items = CartItemInputSerializer(many=True)
+    tip = serializers.DecimalField(max_digits=8, decimal_places=2, min_value=0, required=False, default=0)
 
     def validate(self, data):
         if data["fulfillment"] == Order.Fulfillment.DELIVERY and not data.get("delivery_address", "").strip():
             raise serializers.ValidationError({"delivery_address": "Delivery address is required."})
+        if data.get("tip") and data["fulfillment"] != Order.Fulfillment.DELIVERY:
+            data["tip"] = 0   # the driver tip is only for delivery
         return data
 
 
 class QuoteInputSerializer(serializers.Serializer):
     fulfillment = serializers.ChoiceField(choices=Order.Fulfillment.choices, default="pickup")
     items = CartItemInputSerializer(many=True)
+    discount_percent = serializers.DecimalField(max_digits=5, decimal_places=2, min_value=0, max_value=100,
+                                                required=False, default=0)
 
 
 class OrderItemSerializer(serializers.ModelSerializer):
     class Meta:
         model = OrderItem
-        fields = ["name", "options", "unit_price", "quantity", "line_total"]
+        fields = ["name", "options", "unit_price", "regular_price", "promotion", "quantity", "line_total"]
 
 
 class OrderSerializer(serializers.ModelSerializer):
@@ -45,5 +50,5 @@ class OrderSerializer(serializers.ModelSerializer):
         fields = [
             "public_id", "number", "status", "status_display", "fulfillment",
             "customer_name", "customer_email", "delivery_address",
-            "subtotal", "delivery_fee", "tax", "total", "items", "created_at", "paid_at",
+            "subtotal", "delivery_fee", "tax", "total", "promo_discount", "promotions", "items", "created_at", "paid_at",
         ]

@@ -7,7 +7,8 @@ import { money } from "@/lib/format";
 import type { Quote } from "@/lib/types";
 
 /** Asks the API for the real totals (prices, delivery fee, tax) every time the cart changes. */
-export function useQuote(fulfillment: "pickup" | "delivery") {
+export function useQuote(fulfillment: "pickup" | "delivery", extra: { branch?: number | null; code?: string } = {}) {
+  const { branch = null, code = "" } = extra;
   const { lines, ready } = useCart();
   const [quote, setQuote] = useState<Quote | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -24,6 +25,8 @@ export function useQuote(fulfillment: "pickup" | "delivery") {
       quoteCart(
         lines.map((l) => ({ item_id: l.itemId, quantity: l.quantity, option_ids: l.optionIds })),
         fulfillment,
+        0,
+        { branch, channel: "online", code: code.trim() },
       )
         .then((q) => !cancelled && (setQuote(q), setError(null)))
         .catch((e: Error) => !cancelled && (setQuote(null), setError(e.message)))
@@ -33,7 +36,7 @@ export function useQuote(fulfillment: "pickup" | "delivery") {
       cancelled = true;
       clearTimeout(t);
     };
-  }, [lines, ready, fulfillment]);
+  }, [lines, ready, fulfillment, branch, code]);
 
   return { quote, error, loading };
 }
@@ -60,6 +63,12 @@ export default function OrderSummary({
           <dt>Subtotal</dt>
           <dd>{money(quote?.subtotal ?? subtotal)}</dd>
         </div>
+        {quote?.promo_savings && parseFloat(quote.promo_savings) > 0 && (
+          <div className="flex justify-between text-leaf">
+            <dt>🏷 {quote.promotions?.map((p) => p.name).join(", ") || "Offers"}</dt>
+            <dd>−{money(quote.promo_savings)}</dd>
+          </div>
+        )}
         {fulfillment === "delivery" && (
           <div className="flex justify-between">
             <dt>Delivery</dt>

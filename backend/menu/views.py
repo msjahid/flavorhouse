@@ -2,6 +2,10 @@ from django.db.models import Q
 from rest_framework import generics
 
 from .models import Category, MenuItem
+from django.db.models import Prefetch
+from rest_framework.decorators import api_view
+from rest_framework.response import Response
+
 from .serializers import CategorySerializer, MenuItemDetailSerializer, MenuItemListSerializer
 
 
@@ -37,3 +41,17 @@ class MenuItemDetailView(generics.RetrieveAPIView):
     queryset = MenuItem.objects.filter(is_available=True).prefetch_related("option_groups__options")
     serializer_class = MenuItemDetailSerializer
     lookup_field = "slug"
+
+
+@api_view(["GET"])
+def full_menu(request):
+    """Whole menu in one call (categories → available items → option groups).
+    Used by the TV menu board and the printable menu card."""
+    items = MenuItem.objects.filter(is_available=True).prefetch_related("option_groups__options")
+    cats = Category.objects.filter(is_active=True).prefetch_related(Prefetch("items", queryset=items))
+    ctx = {"request": request}
+    return Response([
+        {**CategorySerializer(c, context=ctx).data,
+         "items": MenuItemDetailSerializer(c.items.all(), many=True, context=ctx).data}
+        for c in cats
+    ])

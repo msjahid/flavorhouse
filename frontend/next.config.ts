@@ -2,6 +2,7 @@ import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
   output: "standalone",
+  devIndicators: false, // hide the Next.js dev badge
   images: {
     // Menu images come from the Django API (local /media/) or from S3 / a CDN.
     remotePatterns: [
